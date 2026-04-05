@@ -1,0 +1,10 @@
+^outputs$
+^scripts$
+^schemas$
+^data$
+^tests/test_engine\.R$
+^inst/stan/.*\.rds$
+^\.github$
+^metaTransportEngine\.Rcheck$
+^metaTransportEngine_[0-9.]+\.tar\.gz$
+^docs$

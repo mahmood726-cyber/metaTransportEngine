@@ -1,0 +1,63 @@
+template:
+  bootstrap: 5
+  bslib:
+    primary: "#1f6feb"
+    border-radius: 0.35rem
+    btn-border-radius: 0.35rem
+
+url: https://mahmood726-cyber.github.io/metaTransportEngine/
+
+development:
+  mode: auto
+
+navbar:
+  structure:
+    left:
+      - intro
+      - reference
+      - articles
+    right:
+      - search
+      - github
+  components:
+    intro:
+      text: Overview
+      href: index.html
+    reference:
+      text: Reference
+      href: reference/index.html
+    articles:
+      text: Articles
+      menu:
+        - text: Getting Started
+          href: articles/getting-started.html
+    github:
+      icon: fab fa-github
+      aria-label: GitHub
+      href: https://github.com/mahmood726-cyber/metaTransportEngine
+
+reference:
+  - title: Example data
+    contents:
+      - example_studies_file
+      - example_targets_file
+      - example_truthcert_schema_file
+      - read_example_studies
+      - read_example_targets
+  - title: Frequentist engine
+    contents:
+      - fit_transport_engine
+      - plot_transport_forest
+      - save_transport_results
+      - print.meta_transport_engine
+  - title: Bayesian engine
+    contents:
+      - fit_bayesian_transport
+      - save_bayesian_results
+      - print.bayesian_meta_transport
+
+articles:
+  - title: Getting started
+    navbar: Getting started
+    contents:
+      - getting-started

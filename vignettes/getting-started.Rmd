@@ -1,0 +1,121 @@
+---
+title: "Getting Started with metaTransportEngine"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with metaTransportEngine}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`metaTransportEngine` fits aggregate-data meta-analysis transport models for one or more target populations. The package is built around a common study-level model:
+
+- `y_s | theta_s ~ Normal(theta_s, v_s)`
+- `theta_s = beta_0 + z_s^T beta + u_s`
+- `u_s ~ Normal(0, tau^2)`
+
+For a target modifier profile `z_T`, the transported mean effect is:
+
+- `theta_T = beta_0 + z_T^T beta`
+
+This vignette walks through the frequentist workflow on the bundled example data and then shows how the Bayesian interface fits into the same data contract.
+
+## Load the package and bundled example data
+
+```{r}
+library(metaTransportEngine)
+
+dat <- read_example_studies()
+targets <- read_example_targets()
+
+moderators <- c("mean_age", "female_pct", "baseline_risk", "followup_months")
+
+head(dat)
+targets
+```
+
+## Fit the frequentist transport engine
+
+```{r}
+fit <- fit_transport_engine(
+  dat = dat,
+  targets = targets,
+  moderators = moderators,
+  effect_scale = "log_rr",
+  rob_col = "risk_of_bias"
+)
+
+fit
+```
+
+The core target-level output contains:
+
+- `transported_mean`: expected mean effect in the target population
+- `lci` and `uci`: confidence interval for the transported mean
+- `lpi` and `upi`: prediction interval for a realized target effect
+
+```{r}
+fit$target_estimates
+```
+
+You also get overlap checks, extrapolation scores, heterogeneity summaries, and leave-one-out instability summaries.
+
+```{r}
+fit$heterogeneity
+fit$extrapolation_scores
+fit$leave_one_out$summary
+```
+
+## Plot transported effects
+
+```{r, fig.width = 8, fig.height = 5, fig.alt = "Forest-style plot showing study estimates and transported target estimates with confidence intervals and prediction intervals."}
+plot_transport_forest(fit, effect_label = "log RR")
+```
+
+## Export a report bundle
+
+The export helper writes CSV and JSON outputs plus a forest plot image.
+
+```{r}
+out_dir <- file.path(tempdir(), "metaTransportEngine-vignette")
+save_transport_results(fit, out_dir)
+list.files(out_dir)
+```
+
+## Bayesian workflow
+
+The Bayesian interface uses the same `dat`, `targets`, and `moderators` inputs and wraps the Stan models bundled in `inst/stan`.
+
+The call looks like this:
+
+```{r, eval = FALSE}
+bayes_fit <- fit_bayesian_transport(
+  dat = dat,
+  targets = targets,
+  moderators = moderators,
+  effect_scale = "log_rr",
+  chains = 2,
+  iter = 800,
+  warmup = 400,
+  seed = 20260404
+)
+
+bayes_fit$target_posterior
+bayes_fit$target_predictive
+```
+
+The Bayesian chunk is not evaluated in the vignette because Stan compilation and sampling are intentionally kept out of routine package builds and CI checks. Use [run_bayesian_demo.R](../scripts/run_bayesian_demo.R) for the full scripted example in the source tree.
+
+## Next steps
+
+From here, the package supports three common workflows:
+
+- use `fit_transport_engine()` when you want a fast, diagnostics-first transport analysis
+- use `fit_bayesian_transport()` when you want posterior and predictive target summaries
+- use the exported CSV/JSON outputs as inputs for a larger reporting or evidence-synthesis pipeline

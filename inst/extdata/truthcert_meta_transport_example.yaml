@@ -1,0 +1,75 @@
+estimand:
+  type: average_treatment_effect
+  scale: log_rr
+  population: adults_with_STEMI
+  intervention: colchicine
+  comparator: standard_care
+  outcome: MACE
+  time_horizon: longest_followup
+  target_population_name: UK_STEMI_2026
+
+effect_modifiers:
+  observed:
+    - mean_age
+    - female_pct
+    - baseline_risk
+    - followup_months
+  unobserved:
+    - adherence_quality
+    - background_secondary_prevention
+    - infarct_severity_mix
+
+studies:
+  - study_id: A
+    yi: -0.12
+    vi: 0.020
+    modifiers:
+      mean_age: 61
+      female_pct: 32
+      baseline_risk: 0.18
+      followup_months: 6
+    risk_of_bias:
+      overall: low
+    provenance:
+      report_link: local_demo_dataset
+  - study_id: E
+    yi: -0.15
+    vi: 0.022
+    modifiers:
+      mean_age: 70
+      female_pct: 44
+      baseline_risk: 0.26
+      followup_months: 18
+    risk_of_bias:
+      overall: high
+    provenance:
+      report_link: local_demo_dataset
+
+target_population:
+  name: UK_STEMI_2026
+  modifiers:
+    mean_age: 68
+    female_pct: 35
+    baseline_risk: 0.28
+    followup_months: 12
+
+transport_assumptions:
+  positivity: required
+  conditional_exchangeability: assumed_given_observed_modifiers
+  consistency: assumed
+  no_major_unmeasured_effect_modification: partially_plausible
+
+model:
+  type: hierarchical_meta_transport
+  likelihood: yi ~ Normal(theta_s, vi)
+  structural_model: theta_s = beta0 + Z_s * beta + u_s
+  random_effects: u_s ~ Normal(0, tau2)
+  target_estimand: theta_T = beta0 + Z_T * beta
+
+outputs:
+  transported_mean_effect: pending
+  transported_ci_lower: pending
+  transported_ci_upper: pending
+  target_prediction_lower: pending
+  target_prediction_upper: pending
+  tau2: pending

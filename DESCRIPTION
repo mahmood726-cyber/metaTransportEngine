@@ -1,0 +1,29 @@
+Package: metaTransportEngine
+Type: Package
+Title: Aggregate-Data Meta-Analysis with Transport to Target Populations
+Version: 0.1.0
+Authors@R: person("OpenAI", "Codex", email = "noreply@openai.com", role = c("aut", "cre"))
+Description: Fits frequentist and Bayesian hierarchical meta-regression models
+    that transport aggregate study evidence to one or more target
+    populations using observed study-level modifiers. Provides overlap
+    diagnostics, extrapolation scores, leave-one-out instability checks,
+    bias sensitivity summaries, and export helpers.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.2.0)
+Imports:
+    ggplot2,
+    jsonlite,
+    metafor,
+    rstan
+Suggests:
+    knitr,
+    pkgdown,
+    pkgload,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+SystemRequirements: C++17, make (required for Stan model compilation)
+VignetteBuilder: knitr

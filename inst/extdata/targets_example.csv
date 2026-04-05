@@ -1,0 +1,4 @@
+label,mean_age,female_pct,baseline_risk,followup_months
+UK_highrisk,68,35,0.28,12
+India_younger,56,29,0.14,12
+Older_women,74,62,0.31,12

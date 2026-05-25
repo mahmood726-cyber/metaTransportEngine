@@ -125,3 +125,26 @@ Target CSV must include:
 - With very few studies relative to the number of moderators, meta-regression becomes unstable. The engine warns when the study count is too small for the requested moderator set.
 - The package includes a getting-started vignette in `vignettes/getting-started.Rmd`.
 - `_pkgdown.yml` and `.github/workflows/pkgdown.yaml` are included so the package can publish a documentation site once it is pushed to GitHub.
+
+## Test
+
+R-side (the canonical test suite, runs under `R CMD check`):
+
+```r
+# install once
+install.packages(c("metafor", "rstan", "testthat"))
+# run the package tests
+devtools::test()
+```
+
+Python-side smoke (catches packaging regressions, runs without R if
+`testthat` is unavailable — that case is reported as a SKIP, not a
+failure):
+
+```bash
+python -m pytest -q
+```
+
+`tests/test_smoke.py` checks: bundled artifacts present, expected
+exports declared, and (if R + testthat available) the full R test suite
+passes.

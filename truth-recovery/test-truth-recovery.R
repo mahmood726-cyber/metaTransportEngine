@@ -36,5 +36,29 @@ ne <- cell(12, 3.0, 0.6)   # NONLINEAR truth, engine fits linear, extrapolated
 report("CRITICAL: under misspecification, extrapolation coverage COLLAPSES", ne$cov < 0.2, sprintf("(%.3f -- confident but wrong)", ne$cov))
 report("the CI does NOT widen to reflect misspecification (fails silently)", abs(ne$w - le$w) < 0.3 * le$w, sprintf("(misspec width %.2f vs linear %.2f)", ne$w, le$w))
 
+# ---- guardrail (truth-recovery fix) -------------------------------------
+# study_data supplied -> predict_transport_target must FLAG out-of-support
+# targets (the exact cells whose coverage collapses) and stay quiet inside.
+flag_cell <- function(k, xt, curve) {
+  fa <- c()
+  for (s in 1:NSIM) {
+    dat <- gen(k, curve, 5000 + s)
+    fit <- tryCatch(rma.uni(yi = dat$yi, vi = dat$vi, mods = ~ x, data = dat, method = "REML"), error = function(e) NULL)
+    if (is.null(fit)) next
+    pa <- tryCatch(suppressWarnings(predict_transport_target(fit, data.frame(x = xt), "x", "t", study_data = dat)), error = function(e) NULL)
+    if (is.null(pa)) next
+    fa <- c(fa, isTRUE(pa$extrapolation_flag))
+  }
+  mean(fa)
+}
+# silent BEFORE: no guard column when study_data omitted (backward compatible)
+pb <- predict_transport_target(rma.uni(yi = gen(12, 0, 5001)$yi, vi = gen(12, 0, 5001)$vi, mods = ~ x, data = gen(12, 0, 5001), method = "REML"),
+                               data.frame(x = 3.0), "x", "t")
+report("BEFORE: no study_data => no flag column (silent, backward compatible)", is.null(pb$extrapolation_flag), "(column absent)")
+fin <- flag_cell(12, 0.5, 0)    # in-support interpolation
+fex <- flag_cell(12, 3.0, 0.6)  # the coverage->0 misspecified extrapolation
+report("AFTER: guard flags the coverage~0 out-of-support extrapolation", fex > 0.95, sprintf("(flagged %.3f vs collapsed coverage %.3f)", fex, ne$cov))
+report("AFTER: guard does NOT false-alarm on safe interpolation", fin < 0.10, sprintf("(flagged %.3f)", fin))
+
 cat(if (ok) "\nAll measured invariants hold.\n" else "\nSOME INVARIANTS FAILED.\n")
 quit(status = if (ok) 0 else 1)

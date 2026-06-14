@@ -53,7 +53,8 @@ summarise_coefficients <- function(fit) {
   )
 }
 
-predict_transport_target <- function(fit, target_row, moderators, target_label, effect_scale = "identity") {
+predict_transport_target <- function(fit, target_row, moderators, target_label, effect_scale = "identity",
+                                      study_data = NULL, warn = TRUE) {
   x_target <- as.numeric(build_design_matrix(target_row, moderators)[1, , drop = TRUE])
   beta_hat <- as.numeric(stats::coef(fit))
   v_beta <- stats::vcov(fit)
@@ -75,6 +76,68 @@ predict_transport_target <- function(fit, target_row, moderators, target_label, 
     upi = mu_target + 1.96 * se_pred_target,
     row.names = NULL
   )
+
+  # ----------------------------------------------------------------------
+  # Extrapolation guardrail (truth-recovery fix). The Wald CI propagates only
+  # SAMPLING variance of the regression coefficients; it does NOT widen for
+  # model-form uncertainty. Under misspecification, extrapolating beyond the
+  # studies' modifier support yields a narrow, confident, WRONG interval
+  # (measured coverage -> 0.00 with no signal). When the study modifier data
+  # is supplied we attach a hard reliability flag and (by default) warn, so a
+  # caller can refuse or gate out-of-support transports instead of trusting a
+  # silently-failing CI.
+  if (!is.null(study_data)) {
+    have_all <- all(moderators %in% names(study_data))
+    if (have_all) {
+      # per-modifier range overlap
+      outside <- FALSE
+      for (mod in moderators) {
+        vals <- suppressWarnings(as.numeric(study_data[[mod]]))
+        tval <- as.numeric(target_row[[mod]][1])
+        if (is.finite(tval) && any(is.finite(vals))) {
+          if (tval < min(vals, na.rm = TRUE) || tval > max(vals, na.rm = TRUE)) outside <- TRUE
+        }
+      }
+      # multivariate Mahalanobis distance of the target from study support
+      z_study <- as.matrix(sapply(moderators, function(m) as.numeric(study_data[[m]])))
+      if (is.null(dim(z_study))) z_study <- matrix(z_study, ncol = length(moderators))
+      d2 <- NA_real_
+      ok_maha <- tryCatch({
+        center <- colMeans(z_study)
+        inv_cov <- qr.solve(safe_cov_inverse(z_study))
+        z_t <- as.numeric(sapply(moderators, function(m) as.numeric(target_row[[m]][1])))
+        delta <- z_t - center
+        d2 <<- as.numeric(t(delta) %*% inv_cov %*% delta)
+        TRUE
+      }, error = function(e) FALSE)
+      p <- length(moderators)
+      q95 <- stats::qchisq(0.95, df = p)
+      q99 <- stats::qchisq(0.99, df = p)
+      flag <- isTRUE(outside) || (ok_maha && is.finite(d2) && d2 > q95)
+      severity <- if (ok_maha && is.finite(d2) && d2 > q99) {
+        "high"
+      } else if (flag) {
+        "moderate"
+      } else {
+        "low"
+      }
+      out$outside_support <- outside
+      out$mahalanobis_d <- if (ok_maha && is.finite(d2)) sqrt(max(d2, 0)) else NA_real_
+      out$extrapolation_flag <- flag
+      out$extrapolation_severity <- severity
+      out$transport_reliable <- !flag
+      if (flag && warn) {
+        warning(sprintf(
+          paste0("Transport target '%s' is OUTSIDE the studies' modifier support ",
+                 "(severity: %s). The reported CI propagates only sampling variance and ",
+                 "will be narrow and overconfident under any model misspecification ",
+                 "(measured coverage of the true effect can collapse to ~0). ",
+                 "Treat this transported estimate as unreliable."),
+          target_label, severity
+        ), call. = FALSE)
+      }
+    }
+  }
 
   if (effect_scale != "identity") {
     out$transported_mean_bt <- back_transform_values(out$transported_mean, effect_scale)
@@ -321,7 +384,9 @@ risk_of_bias_sensitivity <- function(dat,
         target_row = targets[i, , drop = FALSE],
         moderators = moderators,
         target_label = targets[[target_label_col]][i],
-        effect_scale = effect_scale
+        effect_scale = effect_scale,
+        study_data = filtered,
+        warn = FALSE
       )
     })
   )
@@ -519,7 +584,9 @@ fit_transport_engine <- function(dat,
         target_row = targets[i, , drop = FALSE],
         moderators = moderators,
         target_label = targets[[target_label_col]][i],
-        effect_scale = effect_scale
+        effect_scale = effect_scale,
+        study_data = dat,
+        warn = FALSE
       )
     })
   )

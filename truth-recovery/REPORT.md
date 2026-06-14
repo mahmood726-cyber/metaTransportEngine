@@ -55,8 +55,36 @@ The Bayesian (Stan) engine was not exercised (heavy toolchain); the finding is f
 the frequentist transport path. NPE/conformal machinery is not needed. The shipped
 `predict_transport_target` is run unchanged.
 
+## Fix applied (truth-recovery-fix branch)
+`predict_transport_target` now takes an optional `study_data` argument. When the
+study modifier data is supplied it computes (a) per-modifier range overlap and
+(b) the Mahalanobis distance of the target from the study modifier distribution
+(χ² thresholds), and attaches a hard reliability flag to the output
+(`outside_support`, `mahalanobis_d`, `extrapolation_flag`, `extrapolation_severity`,
+`transport_reliable`), issuing a `warning()` for direct callers. Both pipeline
+call sites (`fit_transport_engine`, `risk_of_bias_sensitivity`) now pass the study
+data so every transported estimate carries the flag. Omitting `study_data`
+preserves the old behaviour exactly (backward compatible).
+
+**Measured before→after** (`harness-guard.R 600`, flag rate per scenario):
+
+| scenario | coverage | flag BEFORE | flag AFTER |
+|----------|---------:|------------:|-----------:|
+| interpolation, linear (xt=0.5)    | 0.945 | 0.000 | 0.000 |
+| extrapolation, linear (xt=2.0)    | 0.927 | 0.000 | 1.000 |
+| extrapolation, linear (xt=3.0)    | 0.922 | 0.000 | 1.000 |
+| interpolation, NONLINEAR (xt=0.5) | 0.890 | 0.000 | 0.000 |
+| extrapolation, NONLINEAR (xt=2.0) | **0.078** | 0.000 | **1.000** |
+| extrapolation, NONLINEAR (xt=3.0) | **0.000** | 0.000 | **1.000** |
+
+The two catastrophic silent-failure cells (coverage 0.078 and 0.000) go from
+**0% → 100%** flagged; interpolation stays at **0%** (no false alarm). The guard
+turns a confident-but-wrong, unsignalled extrapolation into an explicit
+"transport_reliable = FALSE".
+
 ## Reproduce
 ```
-Rscript truth-recovery/harness.R 600
+Rscript truth-recovery/harness.R 600        # original validation
+Rscript truth-recovery/harness-guard.R 600  # before/after guard flag rate
 Rscript truth-recovery/test-truth-recovery.R
 ```
